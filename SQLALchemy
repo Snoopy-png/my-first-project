@@ -1,0 +1,73 @@
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
+from sqlalchemy import String, Integer, select, update, delete, insert
+from sqlalchemy import create_engine
+
+# 数据库配置
+engine = create_engine(
+    "mysql+pymysql://root:Admin@123456@localhost:3306/music?charset=utf8mb4",
+    echo=True
+)
+
+# 基类 + 模型
+class Base(DeclarativeBase):
+    pass
+
+class Singer(Base):
+    __tablename__='singers'
+    id:Mapped[int]=mapped_column(Integer,primary_key=True,autoincrement=True)
+    name:Mapped[str]=mapped_column(String(50),nullable=False)
+    gender:Mapped[str]=mapped_column(String(2),nullable=False)
+    age:Mapped[int]=mapped_column(Integer,default=18)
+    phone:Mapped[str]=mapped_column(String(50),nullable=False)
+    debut_year:Mapped[int]=mapped_column(Integer,nullable=False)
+    representative_song:Mapped[str]=mapped_column(String(50),nullable=False)
+
+    def __repr__(self):
+        return f"{self.name}"
+
+#建表
+def sqla_demo():
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+
+    # 1. 查询所有歌手
+    def get_all():
+        return session.scalars(select(Singer)).all()
+
+    # 2. 增加所有歌手的信息
+    session.execute(insert(Singer).values(name="刘德华", gender="男", age=55,phone="13800000099", debut_year=1985, representative_song="忘情水"))
+    session.execute(insert(Singer).values(name="陈奕迅", gender="男", age=50,phone="13800000066", debut_year=1996, representative_song="十年"))
+    session.execute(insert(Singer).values(name='邓紫棋', gender='女',age=32,phone='13800000003',debut_year=2008,representative_song="光年之外"))
+    session.execute(insert(Singer).values(name='刘若英', gender='女',age=53,phone='13800000004',debut_year=1995,representative_song="后来"))
+    session.execute(insert(Singer).values(name='李荣浩',gender='男',age=38,phone="13800000005",debut_year=2010,representative_song="年少有为"))
+    session.commit()  # 5.插入后提交
+
+    # 3. 修改：周杰伦年龄 → 46
+    session.execute(update(Singer).where(Singer.name == "周杰伦").values(age=46))
+    session.commit()
+
+    # 4. 修改：邓紫棋代表作 → 泡沫
+    session.execute(update(Singer).where(Singer.name == "邓紫棋").values(representative_song="泡沫"))
+    session.commit()
+    
+    # 5. 删除：邓紫棋
+    session.execute(delete(Singer).where(Singer.name == "邓紫棋"))
+    session.commit()
+
+    # 6. 最后打印所有歌手
+    print("最终所有歌手：")
+    for s in get_all():
+        print(s)
+
+    #事务自动回滚  3.修复事务代码
+    try:
+        with session.begin():
+            session.add(Singer(name='王菲', gender='女',age=55,phone='13800000006',debut_year=1987,representative_song="传奇"))
+            raise Exception("模拟出错")
+    except:
+        print("事务已回滚")
+    finally:
+        session.close()
+
+if __name__ == '__main__':
+    sqla_demo()
