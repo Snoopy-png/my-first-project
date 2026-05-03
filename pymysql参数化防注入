@@ -1,0 +1,42 @@
+import pymysql
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "Admin@123456",
+    "database": "music",
+    "charset": "utf8mb4"
+}
+# 创建连接
+conn = pymysql.connect(**DB_CONFIG)
+# 创建字典游标（方便按字段名取数据）
+cur = conn.cursor(pymysql.cursors.DictCursor)
+#字典的形式
+insert_sql="""INSERT INTO Singer(name,gender,age,phone,debut_year,representative_song) VALUES (%s,%s,%d,%s,%d,%s)"""
+#插入测试的数据
+cur.execute(insert_sql,("测试歌手","保密",20,"13800000099",2020,"测试歌曲"))
+conn.commit()
+
+#使用字符串拼接的方式会返回全表数据的原因：
+# 用字符串拼接，攻击者能输入恶意内容，因为1=1永真，条件永远成立，输入的sql语句就变成了
+#'1'='1'，整个where条件就会失效，就会返回全表的数据
+
+#创建字典游标
+cur=conn.cursor(pymysql.cursors.DictCursor)
+#定义恶意输入的数据
+evil_input ="测试歌手' OR '1'='1'"
+sql=f"SELECT * FROM Singer WHERE name ='{evil_input}'"
+cur.execute(sql)
+print(cur.fetchall())  #返回所有的信息
+
+#使用%s占位符和参数元组能防注入的原因：
+#能够把恶意输入的语句当作字符串去处理，不会再执行任何的sql命令，就只会返回一条数据
+
+#正确的写法
+cur=conn.cursor(pymysql.cursors.DictCursor)
+evil_input="测试歌手' OR '1'='1'"
+#用%s占位符和参数元组查询
+cur.execute("SELECT * FROM Singer WHERE name =%s",(evil_input,))
+#只返回
+print(cur.fetchall())
+cur.close()
+conn.close()
